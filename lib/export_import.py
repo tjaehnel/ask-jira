@@ -78,8 +78,9 @@ def _get_new_issue_fields(fields, conf):
                     default = getattr(conf, 'DEFAULT_' + name.upper())
                     result[name] = default
                 except AttributeError:
-                    raise AttributeError("Failed to find '%s' in %s_MAP "
-                            'and no default exists', (value, name.upper()))
+                    raise AttributeError("Failed to find '%(value)s' in "
+                            '%(name)s_MAP and DEFAULT_%(name)s is not set' %
+                            {'value': value, 'name': name.upper()})
     if conf.CUSTOM_FIELD:
         result[conf.CUSTOM_FIELD[0]] = conf.CUSTOM_FIELD[1]
     return result
