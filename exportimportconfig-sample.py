@@ -71,6 +71,31 @@ STATUS_TRANSITIONS = {
         WithResolution('Testing passed')),
 }
 
+STATUS_TRANSITIONS_ISSUETYPE = {
+    'Sub-task': {
+        'To Do': None,
+        'In Progress': ('In Progress',),
+        'Review': ('In Progress',),
+        'Done': ('Done',),
+    },
+    'Task': {
+        'To Do': None,
+        'In Progress': ('In Progress',),
+        'Review': ('In Progress',),
+        'Done': ('Done',),
+    }
+}
+
 ADD_COMMENT_TO_OLD_ISSUE = True
 
 CUSTOM_FIELD = ('customfield_11086', {'value': 'Custom value'})
+
+CUSTOM_FIELD_MAP = {
+        'environment': 'environment',
+        'customfield_10200': 'customfield_11320', # User Story
+        'customfield_10008': 'customfield_10004', # Story Points
+        'customfield_10010': 'customfield_11321', # Acceptance Criteria
+        'customfield_10401': 'customfield_11311', # Current Behavior
+        'customfield_10402': 'customfield_11312', # Expected Behavior
+}
+
