@@ -40,6 +40,21 @@ def _make_new_issues(source_jira, target_jira, issues, conf, result, parent):
             # Support multiple versions per ticket.
             fields['fixVersions'] = target_versions
 
+        # Migrate issue components.
+        source_components = getattr(issue.fields, 'components')
+        if source_components is not None:
+            target_components = []
+            for component in source_components:
+                # We create the current component if it does not exist in the target JIRA project.
+                target_component = _get_target_component_by_name(target_jira, conf, getattr(component, 'name'))
+                if target_component is None:
+                    target_component = target_jira.create_component(getattr(component, 'name'), conf.JIRA['project'])
+
+                target_components.append({'id': getattr(target_component, 'id')})
+
+            # Support multiple components per ticket.
+            fields['components'] = target_components
+
         new_issue = target_jira.create_issue(fields=fields)
         if not parent:
             print('to', new_issue.key, '...', end=' ')
@@ -94,6 +109,21 @@ def _get_target_version_by_name(jira, conf, name):
 
     return None
 
+
+def _get_target_component_by_name(jira, conf, name):
+    """
+    Get an existing component by name for the current project.
+
+    :param jira: current jira resource
+    :param conf: JIRA configurations
+    :param name: name of the component to check
+    """
+    components = jira.project_components(conf.JIRA['project'])
+    for component in components:
+        if getattr(component, 'name') == name:
+            return component
+
+    return None
 
 def _get_new_issue_fields(fields, conf):
     result = {}
