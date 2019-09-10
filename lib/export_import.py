@@ -116,6 +116,17 @@ def _get_new_issue_fields(fields, conf):
             value = getattr(fields, sourcename, None)
             if value:
                 result[targetname] = value
+    custom_field_static_issuetype = getattr(conf, "CUSTOM_FIELD_STATIC_ISSUETYPE", None)
+    custom_field_static = getattr(conf, "CUSTOM_FIELD_STATIC", None)
+    issue_type = result['issuetype']['name']
+    if custom_field_static_issuetype:
+        if issue_type in custom_field_static_issuetype:
+            custom_field_static = custom_field_static_issuetype[issue_type]
+    if custom_field_static:
+        for sourcename in custom_field_static.keys():
+            value = custom_field_static[sourcename]
+            if value:
+                result[sourcename] = value
     return result
 
 _g_epic_map = {}
