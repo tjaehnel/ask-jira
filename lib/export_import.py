@@ -21,7 +21,9 @@ _g_subtask_map = {}
 def _make_new_issues(source_jira, target_jira, issues, conf, result, parent):
     global _g_subtask_map
     no_auto_create_subtasks = getattr(conf,'NO_AUTO_CREATE_SUBTASKS',False) 
+    issue_number=0
     for issue in issues:
+        issue_number = issue_number + 1
         if no_auto_create_subtasks:
             if issue.key in _g_subtask_map:
                 parent = _g_subtask_map[issue.key]
@@ -62,6 +64,21 @@ def _make_new_issues(source_jira, target_jira, issues, conf, result, parent):
             # Support multiple versions per ticket.
             fields['fixVersions'] = target_versions
 
+        if getattr(conf, 'FILL_CONSECUTIVE_NUMBERING_GAPS', False) and getattr(conf, 'NO_AUTO_CREATE_EPICS', False) and no_auto_create_subtasks:
+            dummy_fields = { }
+            dummy_fields['project'] = fields['project']
+            dummy_fields['issuetype'] = getattr(conf, 'FILL_CONSECUTIVE_DUMMY_ISSUETYPE', 'Task')
+            dummy_fields['summary'] = "DUMMY Issue created during import to preserve issue numbering"
+#            print(dummy_fields)
+            source_issue_number=int(issue.key.split('-')[1])
+            while(source_issue_number > issue_number):
+                print('Issue IDs in source Jira are not consecutive!')
+                print('  - Want to create issue ', source_issue_number, ' but missing preceding issue ', issue_number, '.')
+                print('  -> Creating a dummy issue...')
+                target_jira.create_issue(fields=dummy_fields)
+                issue_number = issue_number + 1
+
+#        print(fields)
         new_issue = target_jira.create_issue(fields=fields)
         _g_issue_map[issue.key] = new_issue
         if not parent or no_auto_create_subtasks:
@@ -146,6 +163,18 @@ def _get_new_issue_fields(fields, conf):
             value = getattr(fields, sourcename, None)
             if value:
                 result[targetname] = value
+    custom_field_static_issuetype= getattr(conf, "CUSTOM_FIELD_STATIC_ISSUETYPE", None)
+    custom_field_static = getattr(conf, "CUSTOM_FIELD_STATIC", None)
+    issue_type = result['issuetype']['name']
+    if custom_field_static_issuetype:
+        if issue_type in custom_field_static_issuetype:
+            custom_field_static = custom_field_static_issuetype[issue_type]
+    
+    if custom_field_static:
+        for sourcename in custom_field_static.keys():
+            value = custom_field_static[sourcename]
+            if value:
+                result[sourcename] = value
     epicName = getattr(fields, conf.SOURCE_EPIC_NAME_FIELD_ID, None)
     if epicName:
         result[conf.TARGET_EPIC_NAME_FIELD_ID] = epicName
@@ -189,22 +218,28 @@ def _set_status(new_issue, old_issue, conf, target_jira):
     transitions = None
     transition_map = getattr(conf, "STATUS_TRANSITIONS_ISSUETYPE", None)
     if transition_map:
+        print("Looking for transitions for Issue Type: ",issue_type)
         if issue_type in transition_map:
+            print("Using specific transition map")
             transition_map = transition_map[issue_type]
         else:
             transition_map = None
     if not transition_map:
+        print("Using generic transition map")
         transition_map = conf.STATUS_TRANSITIONS
 
     transitions = transition_map[status_name]
+    print("Transition to ", status_name, " (source status) via ", transitions)
     if not transitions:
         return
     for transition_name in transitions:
         if isinstance(transition_name, conf.WithResolution):
             resolution = conf.RESOLUTION_MAP[old_issue.fields.resolution.name]
+            print("Performing transition: ", transition_name, " with resolution: ", resolution)
             target_jira.transition_issue(new_issue, transition_name.transition_name,
                     fields={'resolution': {'name': resolution}})
         else:
+            print("Performing transition: ", transition_name)
             target_jira.transition_issue(new_issue, transition_name)
 
 def _add_comments(issue, jira, comments):
